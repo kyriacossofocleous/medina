@@ -393,23 +393,23 @@ def generate_update_rconst(rconst_ops,rconst_decls,locals,rcint):
 
 
     update_rconst.append( \
-    "__device__ void  update_rconst(const double * __restrict__ var, \n \
-			       const double * __restrict__ khet_st, const double * __restrict__ khet_tr,\n \
-			       const double * __restrict__ jx, double * __restrict__ rconst, \n\
-			       const double * __restrict__ temp_gpu, \n\
-			       const double * __restrict__ press_gpu, \n\
-			       const double * __restrict__ cair_gpu, \n\
+    "__device__ void  update_rconst(const REAL * __restrict__ var, \n \
+			       const REAL * __restrict__ khet_st, const REAL * __restrict__ khet_tr,\n \
+			       const REAL * __restrict__ jx, REAL * __restrict__ rconst, \n\
+			       const REAL * __restrict__ temp_gpu, \n\
+			       const REAL * __restrict__ press_gpu, \n\
+			       const REAL * __restrict__ cair_gpu, \n\
 			       const int VL_GLO)\n")
     update_rconst.append("{\n")
     update_rconst.append("    int index = blockIdx.x*blockDim.x+threadIdx.x;\n\n")
     update_rconst.append("    /* Set local buffer */\n")
     update_rconst.append("\n")
     update_rconst.append("    {\n")
-    update_rconst.append("        const double temp_loc  = temp_gpu[index];\n")
-    update_rconst.append("        const double press_loc = press_gpu[index];\n")
-    update_rconst.append("        const double cair_loc  = cair_gpu[index];\n")
+    update_rconst.append("        const REAL temp_loc  = temp_gpu[index];\n")
+    update_rconst.append("        const REAL press_loc = press_gpu[index];\n")
+    update_rconst.append("        const REAL cair_loc  = cair_gpu[index];\n")
     update_rconst.append("\n")
-    line = "        double"
+    line = "        REAL"
     for i in locals:
         line = line+" "+i+","
     line = line[:-1]+";\n"
@@ -433,7 +433,7 @@ pass
 
 def generate_kppsolve(source):
     kppsolve=[]
-    kppsolve.append("__device__ void kppSolve(const double * __restrict__ Ghimj, double * __restrict__ K, \n\
+    kppsolve.append("__device__ void kppSolve(const REAL * __restrict__ Ghimj, REAL * __restrict__ K, \n\
                          const int istage, const int ros_S )")
     kppsolve.append("{\n")
     kppsolve.append("    int index = blockIdx.x*blockDim.x+threadIdx.x;\n")
@@ -455,12 +455,12 @@ pass
 
 def generate_kppDecomp(source,NSPEC,lu_diag,lu_crow,lu_icol):
     kppDecomp = []
-    kppDecomp.append("__device__ void kppDecomp(double *Ghimj, int VL_GLO)\n")
+    kppDecomp.append("__device__ void kppDecomp(REAL *Ghimj, int VL_GLO)\n")
     kppDecomp.append("{\n")
-    kppDecomp.append("    double a=0.0;\n")
+    kppDecomp.append("    REAL a=0.0;\n")
 
     kppDecomp.append("\n")
-    kppDecomp.append(" double dummy")
+    kppDecomp.append(" REAL dummy")
     for var in range(NSPEC):
         kppDecomp.append(", W_" + str(var))
     kppDecomp.append(";\n\n")
@@ -505,11 +505,11 @@ def generate_kppDecompIndirect(source,NSPEC,lu_diag,lu_crow,lu_icol):
 
 
     kppDecomp.append("\n")
-    kppDecomp.append("__device__ void kppDecomp(double *Ghimj, const int VL_GLO)\n")
+    kppDecomp.append("__device__ void kppDecomp(REAL *Ghimj, const int VL_GLO)\n")
     kppDecomp.append("{\n")
-    kppDecomp.append("    double a=0.0;\n")
+    kppDecomp.append("    REAL a=0.0;\n")
     kppDecomp.append("    int k, kk, j, jj;\n")
-    kppDecomp.append("    double W[" + str(NSPEC) +"];\n")
+    kppDecomp.append("    REAL W[" + str(NSPEC) +"];\n")
 
     kppDecomp.append("\n")
 
@@ -543,13 +543,13 @@ pass
 
 def generate_jac_sp(source,NBSIZE):
     jac_sp = []
-    jac_sp.append("__device__ void Jac_sp(const double * __restrict__ var, const double * __restrict__ fix,\n\
-                 const double * __restrict__ rconst, double * __restrict__ jcb, int &Njac, const int VL_GLO)\n")
+    jac_sp.append("__device__ void Jac_sp(const REAL * __restrict__ var, const REAL * __restrict__ fix,\n\
+                 const REAL * __restrict__ rconst, REAL * __restrict__ jcb, int &Njac, const int VL_GLO)\n")
     jac_sp.append("{\n")
     jac_sp.append("    int index = blockIdx.x*blockDim.x+threadIdx.x;\n")
 
     jac_sp.append("\n")
-    jac_sp.append(" double dummy")
+    jac_sp.append(" REAL dummy")
     for var in range(NBSIZE):
         jac_sp.append(", B_" + str(var))
     jac_sp.append(";\n\n")
@@ -576,14 +576,14 @@ pass
 #########################################################################################################
 def generate_fun(source,NREACT):
     fun = []
-    fun.append("__device__ void Fun(double *var, const double * __restrict__ fix, const double * __restrict__ rconst, double *varDot, int &Nfun, const int VL_GLO)")
+    fun.append("__device__ void Fun(REAL *var, const REAL * __restrict__ fix, const REAL * __restrict__ rconst, REAL *varDot, int &Nfun, const int VL_GLO)")
     fun.append("{\n")
     fun.append("    int index = blockIdx.x*blockDim.x+threadIdx.x;\n")
     fun.append("\n")
     fun.append("    Nfun++;\n")
     fun.append("\n")
 
-    fun.append(" double dummy")
+    fun.append(" REAL dummy")
     for var in range(NREACT):
         fun.append(", A_" + str(var))
     fun.append(";\n\n")
@@ -800,11 +800,11 @@ def find_LU_ICOL(file_in, NVAR):
 
 def generate_prepareMatrix(lu_diag):
     prepareMatrix = []
-    prepareMatrix.append("__device__ void ros_PrepareMatrix(double &H, int direction, double gam, double *jac0, double *Ghimj,  int &Nsng, int &Ndec, int VL_GLO)\n")
+    prepareMatrix.append("__device__ void ros_PrepareMatrix(REAL &H, int direction, REAL gam, REAL *jac0, REAL *Ghimj,  int &Nsng, int &Ndec, int VL_GLO)\n")
     prepareMatrix.append("{\n")
     prepareMatrix.append("    int index = blockIdx.x*blockDim.x+threadIdx.x;\n")
     prepareMatrix.append("    int ising, nConsecutive;\n")
-    prepareMatrix.append("    double ghinv;\n")
+    prepareMatrix.append("    REAL ghinv;\n")
     prepareMatrix.append("    \n")
     prepareMatrix.append("        ghinv = ONE/(direction*H*gam);\n")
     prepareMatrix.append("        for (int i=0; i<LU_NONZERO; i++)\n")
@@ -1063,7 +1063,7 @@ def generate_definitions_global(file_in,var_prefix):
     for var_name in var_prefix:
         for line in source:
 
-            # ignore some definitions that are not double
+            # ignore some definitions that are not REAL
             if "INTEGER" in line:
                 continue
 

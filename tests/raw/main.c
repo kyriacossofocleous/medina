@@ -14,17 +14,17 @@
 #define VL_GLO 5760
 #define IPMAX 115
 
-double conc[VL_GLO*NSPEC];
-double temp[VL_GLO];
-double press[VL_GLO];
-double cair[VL_GLO];
-double jx[VL_GLO*NSPEC];
+REAL conc[VL_GLO*NSPEC];
+REAL temp[VL_GLO];
+REAL press[VL_GLO];
+REAL cair[VL_GLO];
+REAL jx[VL_GLO*NSPEC];
 
 
 int xNacc[VL_GLO];
 int xNrej[VL_GLO];
 
-double conc_cell[NSPEC] = {
+REAL conc_cell[NSPEC] = {
 0.000000000000000E+000,
 0.000000000000000E+000,
 1.130030837133365E-006,
@@ -101,20 +101,20 @@ double conc_cell[NSPEC] = {
 87651408241.1165
 };
 
-double abstol[NSPEC] = {
+REAL abstol[NSPEC] = {
     0.0
 };
 
-double reltol[NSPEC] = {
+REAL reltol[NSPEC] = {
 
     0.0
 };
 
-double khet_st[VL_GLO*NSPEC] = {
+REAL khet_st[VL_GLO*NSPEC] = {
     0.0
 };
 
-double khet_tr[VL_GLO*NSPEC] = {
+REAL khet_tr[VL_GLO*NSPEC] = {
     0.0
 };
 
@@ -149,8 +149,8 @@ int main(int argc, char **argv){
     int sizes[4] = {VL_GLO,NSPEC,NSPEC,IPMAX}; 
     int icntrl[20] = {0,0,2,0};
 
-    double roundoff = 2.220446049250313E-016;
-    double timestep = 720.0;
+    REAL roundoff = 2.220446049250313E-016;
+    REAL timestep = 720.0;
 
     for (i=0;i<VL_GLO;i++){
         for (j=0;j<NSPEC;j++){
@@ -177,7 +177,7 @@ int main(int argc, char **argv){
 
     COPY_DATA();
 
-    kpp_integrate_cuda_( &n, sizes, &timestep, conc, temp, press, cair, khet_st, khet_tr, jx, abstol, reltol, &ierr, &istatus, xNacc, xNrej, &roundoff, icntrl);
+    // kpp_integrate_cuda_( &n, sizes, &timestep, conc, temp, press, cair, khet_st, khet_tr, jx, abstol, reltol, &ierr, &istatus, xNacc, xNrej, &roundoff, icntrl);
 
 
 
