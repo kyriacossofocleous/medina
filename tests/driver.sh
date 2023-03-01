@@ -4,7 +4,6 @@
 ####
 ##########################################
 
-
 echo "=============================================================="
 echo "=================> STEP 1: Copying files. <==================="
 
@@ -21,11 +20,17 @@ echo "=================> STEP 2: Running script. <=================="
 (
 #set -x
 cd messy/util/medina
-python ./f2c_alpha.py -r 1 -g 1 -s "../../smcl/" > /dev/null
+if [ $# -eq 0 ]; then
+       python ./f2c_alpha.py -r 1 -g 1 -p 2 -s "../../smcl/" > /dev/null
+elif [ "$1" = "SingleGPU" ]; then
+       python ./f2c_alpha.py -r 1 -g 1 -p 1 -s "../../smcl/" > /dev/null
+else
+       echo "Wrong input"
+       exit -1
+fi
 )
-
 status=$?
-if [ $status == 1 ]; then
+if [ $status -eq 1 ]; then
        echo "Python parser - Unsuccessful"
        exit -1
 fi
@@ -35,44 +40,54 @@ echo "==========> STEP 3: Compiling the output files. <============="
 (
 #set -x
 cd messy/smcl
-nvcc -O0 -DDEBUG -c messy_mecca_kpp_acc.cu  2>&1  | grep error
+if [ $# -eq 0 ]; then
+       nvcc -DDEBUG -O0 -c messy_mecca_kpp_acc.cu  2>&1  | grep error
+elif [ "$1" = "SingleGPU" ]; then
+       nvcc -DDEBUG -D__SINGLEPREC --expt-relaxed-constexpr  -O0 -c messy_mecca_kpp_acc.cu  2>&1  | grep error
+fi
 )
 
 status=$?
-if [ $status == 0 ]; then
+if [ $status -eq 0 ]; then
        echo "NVCC - Unsuccessful"
        exit -1
 fi
 
-echo "============> STEP 4: Running CUDA memory check <=============="
+echo "============> STEP 4: Running the application. <=============="
+
 
 (
 #set -x
 cat ./raw/main.c >> ./messy/smcl/messy_mecca_kpp_acc.cu
 cd messy/smcl
-nvcc -O1 -lineinfo messy_mecca_kpp_acc.cu --keep --keep-dir ./temp_files  2>&1  | grep error
-cuda-memcheck ./a.out | grep -v "Results"
-)
-
-echo "============> STEP 5: Running the application. <=============="
-(
-#set -x
-cd messy/smcl
-nvcc -O1  messy_mecca_kpp_acc.cu --keep --keep-dir ./temp_files  2>&1  | grep error
+if [ $# -eq 0 ]; then
+       echo "-------CUDA in double precision-------"
+       nvcc -O1  -DDEBUG -lineinfo messy_mecca_kpp_acc.cu --keep --keep-dir ./temp_files  2>&1  | grep error
+       cuda-memcheck ./a.out | grep -v "Results"
+       nvcc -O1  messy_mecca_kpp_acc.cu --keep --keep-dir ./temp_files  2>&1  | grep error
+elif [ "$1" = "SingleGPU" ]; then
+       echo "-------CUDA in single precision-------"
+       nvcc -O1  -DDEBUG -lineinfo --compiler-options -D__SINGLEPREC --expt-relaxed-constexpr messy_mecca_kpp_acc.cu --keep --keep-dir ./temp_files  2>&1  | grep error
+       cuda-memcheck ./a.out | grep -v "Results"
+       nvcc -O1 --compiler-options -D__SINGLEPREC --expt-relaxed-constexpr messy_mecca_kpp_acc.cu --keep --keep-dir ./temp_files  2>&1  | grep error
+else
+       echo "Wrong input"
+       exit -1
+fi
 ./a.out | grep -v "Results"
 ./a.out | grep "Results" | sed -e "s/Results://g" > res_gpu.txt
 )
 
 
 status=$?
-if [ $status == 1 ]; then
+if [ $status -eq 1 ]; then
        echo "NVCC - Unsuccessful"
        exit -1
 fi
 
 
 
-echo "======> STEP 6: Compiling original version in FORTRAN. <======"
+echo "======> STEP 5: Compiling original version in FORTRAN. <======"
 
 
 (
@@ -90,21 +105,21 @@ gfortran -g *o  -lm
 )
 
 
-echo "==========> STEP 7: Comparing the output results. <==========="
+echo "==========> STEP 6: Comparing the output results. <==========="
 
 (
 #set -x
-python compare.py ./messy/fortran/res_fortran.txt messy/smcl/res_gpu.txt | grep "Element\|<<<<<<===== WARNING"
+python3 compare.py ./messy/fortran/res_fortran.txt messy/smcl/res_gpu.txt | grep "Element\|<<<<<<===== WARNING"
 )
 
-echo "===========> STEP 8: Cleaning up the directories. <==========="
+echo "===========> STEP 7: Cleaning up the directories. <==========="
 
 
 (
 #set -x
 cd messy/smcl/
-rm ./*
-rm ./temp_files/* 
+rm -r *
+mkdir ./temp_files 
 cd ../fortran/
 rm ./*
 cd ../util/
