@@ -1,27 +1,27 @@
 
-__device__ static int ros_Integrator_ros3(double * __restrict__ var, const double * __restrict__ fix, const double Tstart, const double Tend, double &T,
+__device__ static int ros_Integrator_ros3(REAL * __restrict__ var, const REAL * __restrict__ fix, const REAL Tstart, const REAL Tend, REAL &T,
         //  Integration parameters
         const int autonomous, const int vectorTol, const int Max_no_steps, 
-        const double roundoff, const double Hmin, const double Hmax, const double Hstart, double &Hexit, 
-        const double FacMin, const double FacMax, const double FacRej, const double FacSafe, 
+        const REAL roundoff, const REAL Hmin, const REAL Hmax, const REAL Hstart, REAL &Hexit, 
+        const REAL FacMin, const REAL FacMax, const REAL FacRej, const REAL FacSafe, 
         //  Status parameters
         int &Nfun, int &Njac, int &Nstp, int &Nacc, int &Nrej, int &Ndec, int &Nsol, int &Nsng,
         //  cuda global mem buffers              
-        const double * __restrict__ rconst,  const double * __restrict__ absTol, const double * __restrict__ relTol, double * __restrict__ varNew, double * __restrict__ Fcn0, 
-        double * __restrict__ K, double * __restrict__ dFdT, double * __restrict__ jac0, double * __restrict__ Ghimj, double * __restrict__ varErr,
+        const REAL * __restrict__ rconst,  const REAL * __restrict__ absTol, const REAL * __restrict__ relTol, REAL * __restrict__ varNew, REAL * __restrict__ Fcn0, 
+        REAL * __restrict__ K, REAL * __restrict__ dFdT, REAL * __restrict__ jac0, REAL * __restrict__ Ghimj, REAL * __restrict__ varErr,
         // for update_rconst
-        const double * __restrict__ khet_st, const double * __restrict__ khet_tr,
-        const double * __restrict__ jx,
+        const REAL * __restrict__ khet_st, const REAL * __restrict__ khet_tr,
+        const REAL * __restrict__ jx,
         // VL_GLO
         const int VL_GLO)
 {
     int index = blockIdx.x*blockDim.x+threadIdx.x;
 
-    double H, Hnew, HC, HC0,HC1, HG, Fac; // Tau - not used
-    double Err; //*varErr;
+    REAL H, Hnew, HC, HC0,HC1, HG, Fac; // Tau - not used
+    REAL Err; //*varErr;
     int direction;
     int rejectLastH, rejectMoreH;
-    const double DELTAMIN = 1.0E-5;
+    const REAL DELTAMIN = 1.0E-5;
 
     const int ros_S = 3;
 
@@ -97,7 +97,7 @@ __device__ static int ros_Integrator_ros3(double * __restrict__ var, const doubl
                 Fun(varNew, fix, rconst, varNew, Nfun,VL_GLO); // FCN <- varNew / not overlap 
                 HC = -0.10156171083877702091975600115545E+01/(direction*H);
                 for (int i=0; i<NVAR; i++){
-                    double tmp = K(index,0,i);
+                    REAL tmp = K(index,0,i);
                     K(index,1,i) = tmp*HC + varNew(index,i);
                 }
                 if ((!autonomous))
@@ -177,16 +177,16 @@ __device__ static int ros_Integrator_ros3(double * __restrict__ var, const doubl
 }
 
 __global__ 
-void Rosenbrock_ros3(double * __restrict__ conc, const double Tstart, const double Tend, double * __restrict__ rstatus, int * __restrict__ istatus,
+void Rosenbrock_ros3(REAL * __restrict__ conc, const REAL Tstart, const REAL Tend, REAL * __restrict__ rstatus, int * __restrict__ istatus,
                 const int autonomous, const int vectorTol, const int UplimTol, const int Max_no_steps,
-                double * __restrict__ d_jac0, double * __restrict__ d_Ghimj, double * __restrict__ d_varNew, double * __restrict__ d_K, double * __restrict__ d_varErr,double * __restrict__ d_dFdT ,double * __restrict__ d_Fcn0, double * __restrict__ d_var, double * __restrict__ d_fix, double * __restrict__ d_rconst,
-                const double Hmin, const double Hmax, const double Hstart, const double FacMin, const double FacMax, const double FacRej, const double FacSafe, const double roundoff,
-                const double * __restrict__ absTol, const double * __restrict__ relTol,
-    	        const double * __restrict__ khet_st, const double * __restrict__ khet_tr,
-		const double * __restrict__ jx,
-                const double * __restrict__ temp_gpu,
-                const double * __restrict__ press_gpu,
-                const double * __restrict__ cair_gpu,
+                REAL * __restrict__ d_jac0, REAL * __restrict__ d_Ghimj, REAL * __restrict__ d_varNew, REAL * __restrict__ d_K, REAL * __restrict__ d_varErr,REAL * __restrict__ d_dFdT ,REAL * __restrict__ d_Fcn0, REAL * __restrict__ d_var, REAL * __restrict__ d_fix, REAL * __restrict__ d_rconst,
+                const REAL Hmin, const REAL Hmax, const REAL Hstart, const REAL FacMin, const REAL FacMax, const REAL FacRej, const REAL FacSafe, const REAL roundoff,
+                const REAL * __restrict__ absTol, const REAL * __restrict__ relTol,
+    	        const REAL * __restrict__ khet_st, const REAL * __restrict__ khet_tr,
+		const REAL * __restrict__ jx,
+                const REAL * __restrict__ temp_gpu,
+                const REAL * __restrict__ press_gpu,
+                const REAL * __restrict__ cair_gpu,
                 const int VL_GLO)
 {
     int index = blockIdx.x*blockDim.x+threadIdx.x;
@@ -199,16 +199,16 @@ void Rosenbrock_ros3(double * __restrict__ conc, const double Tstart, const doub
      *  optimize accesses. 
      *
      */
-    double *Ghimj  = &d_Ghimj[index*LU_NONZERO];    
-    double *K      = &d_K[index*NVAR*3];
-    double *varNew = &d_varNew[index*NVAR];
-    double *Fcn0   = &d_Fcn0[index*NVAR];
-    double *dFdT   = &d_dFdT[index*NVAR];
-    double *jac0   = &d_jac0[index*LU_NONZERO];
-    double *varErr = &d_varErr[index*NVAR];
-    double *var    = &d_var[index*NSPEC];
-    double *fix    = &d_fix[index*NFIX];
-    double *rconst = &d_rconst[index*NREACT];
+    REAL *Ghimj  = &d_Ghimj[index*LU_NONZERO];    
+    REAL *K      = &d_K[index*NVAR*3];
+    REAL *varNew = &d_varNew[index*NVAR];
+    REAL *Fcn0   = &d_Fcn0[index*NVAR];
+    REAL *dFdT   = &d_dFdT[index*NVAR];
+    REAL *jac0   = &d_jac0[index*LU_NONZERO];
+    REAL *varErr = &d_varErr[index*NVAR];
+    REAL *var    = &d_var[index*NSPEC];
+    REAL *fix    = &d_fix[index*NFIX];
+    REAL *rconst = &d_rconst[index*NREACT];
 
     const int method = 2;
 
@@ -216,7 +216,7 @@ void Rosenbrock_ros3(double * __restrict__ conc, const double Tstart, const doub
     {
 
         int Nfun,Njac,Nstp,Nacc,Nrej,Ndec,Nsol,Nsng;
-        double Texit, Hexit;
+        REAL Texit, Hexit;
 
         Nfun = 0;
         Njac = 0;

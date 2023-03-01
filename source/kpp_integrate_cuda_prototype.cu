@@ -136,20 +136,25 @@ __device__ inline void prefetch_ll2(const void *p) {
 #endif
 }
 
+#if defined(__SINGLEPREC)
+typedef float REAL;
+#else
+typedef double REAL;
+#endif
 
 
-__device__ void  update_rconst(const double * __restrict__ var,
-			       const double * __restrict__ khet_st, const double * __restrict__ khet_tr,
-			       const double * __restrict__ jx, double * __restrict__ rconst,
- 			       const double * __restrict__ temp_gpu,
- 			       const double * __restrict__ press_gpu,
- 			       const double * __restrict__ cair_gpu,
+__device__ void  update_rconst(const REAL * __restrict__ var,
+			       const REAL * __restrict__ khet_st, const REAL * __restrict__ khet_tr,
+			       const REAL * __restrict__ jx, REAL * __restrict__ rconst,
+ 			       const REAL * __restrict__ temp_gpu,
+ 			       const REAL * __restrict__ press_gpu,
+ 			       const REAL * __restrict__ cair_gpu,
 			       const int VL_GLO);
 
 /* This runs on CPU */
-double machine_eps_flt()
+REAL machine_eps_flt()
 {
-    double machEps = 1.0f;
+    REAL machEps = 1.0f;
 
     do
     {
@@ -157,18 +162,18 @@ double machine_eps_flt()
         // If next epsilon yields 1, then break, because current
         // epsilon is the machine epsilon.
     }
-    while ((double)(1.0 + (machEps/2.0)) != 1.0);
+    while ((REAL)(1.0 + (machEps/2.0)) != 1.0);
 
     return machEps;
 }
 
 /* This runs on GPU */
-__device__ double machine_eps_flt_cuda() 
+__device__ REAL machine_eps_flt_cuda() 
 {
     typedef union 
     {
         long  i64;
-        double f64;
+        REAL f64;
     } flt_64;
 
     flt_64 s;
@@ -178,15 +183,15 @@ __device__ double machine_eps_flt_cuda()
     return (s.f64 - 1.);
 }
 
-__device__  static double alpha_AN(const int n, const int ro2type, const double temp, const double cair){
-    double alpha=2.E-22, beta=1.0, Yinf_298K=0.43,  F=0.41, m0=0., minf=8.0;
-    double Y0_298K, Y0_298K_tp, Yinf_298K_t, zeta, k_ratio, alpha_a;
+__device__  static REAL alpha_AN(const int n, const int ro2type, const REAL temp, const REAL cair){
+    REAL alpha=2.E-22, beta=1.0, Yinf_298K=0.43,  F=0.41, m0=0., minf=8.0;
+    REAL Y0_298K, Y0_298K_tp, Yinf_298K_t, zeta, k_ratio, alpha_a;
     /*  IF (ro2type = 1) THEN   m = 0.4                !   primary RO2
         ELSE IF (ro2type = 2) THEN  m = 1.                 !   secondary RO2
         ELSE IF (ro2type = 3) THEN  m = 0.3                !   tertiary RO2
         ELSE  m = 1.
   */
-    double m = 1.;
+    REAL m = 1.;
     Y0_298K     = alpha*exp(beta*n);
     Y0_298K_tp  = Y0_298K *cair *pow((temp/298.),(- m0));
     Yinf_298K_t = Yinf_298K * pow((temp/298.),(- minf));
@@ -195,11 +200,11 @@ __device__  static double alpha_AN(const int n, const int ro2type, const double 
     alpha_a    = k_ratio/(1+ k_ratio) *m;
     return alpha_a;
 }
-__device__  static double alpha_AN(const int n, const int ro2type, const int bcarb, const int gcarb, const int abic, const double temp, const double cair){
-    double alpha=2.E-22, beta=1.0, Yinf_298K=0.43,  F=0.41, m0=0., minf=8.0;
-    double Y0_298K, Y0_298K_tp, Yinf_298K_t, zeta, k_ratio, alpha_a;
-    double bcf=1., gcf=1., abf=1.;
-    double m = 1.; //According to Teng, ref3189
+__device__  static REAL alpha_AN(const int n, const int ro2type, const int bcarb, const int gcarb, const int abic, const REAL temp, const REAL cair){
+    REAL alpha=2.E-22, beta=1.0, Yinf_298K=0.43,  F=0.41, m0=0., minf=8.0;
+    REAL Y0_298K, Y0_298K_tp, Yinf_298K_t, zeta, k_ratio, alpha_a;
+    REAL bcf=1., gcf=1., abf=1.;
+    REAL m = 1.; //According to Teng, ref3189
 
 if (bcarb == 1) { bcf = 0.19; }// derived from Praske, ref3190: alpha_AN = 0.03 for the secondary HMKO2 relative to alpha_AN for 6C RO2 (0.16)
 if (gcarb == 1) {gcf = 0.44; }// derived from Praske, ref3190: alpha_AN = 0.07 for the primary HMKO2 relative to alpha_AN for 6C RO2 (0.16)
@@ -214,14 +219,14 @@ if (abic == 1) { abf = 0.24; }// derived from the ratio of AN- yield for toluene
     alpha_a    = k_ratio/(1+ k_ratio) *m*bcf*gcf*abf;
     return alpha_a;
 }
-__device__  static double k_RO2_HO2(const double temp, const int nC){
+__device__  static REAL k_RO2_HO2(const REAL temp, const int nC){
     return 2.91e-13*exp(1300./temp)*(1.-exp(-0.245*nC)); // ref1630
 }
-__device__ double ros_ErrorNorm(double * __restrict__ var, double * __restrict__ varNew, double * __restrict__ varErr, 
-                                const double * __restrict__ absTol, const double * __restrict__ relTol,
+__device__ REAL ros_ErrorNorm(REAL * __restrict__ var, REAL * __restrict__ varNew, REAL * __restrict__ varErr, 
+                                const REAL * __restrict__ absTol, const REAL * __restrict__ relTol,
                                 const int vectorTol )
 {
-    double err, scale, varMax;
+    REAL err, scale, varMax;
 
 
     err = ZERO;
@@ -240,9 +245,9 @@ __device__ double ros_ErrorNorm(double * __restrict__ var, double * __restrict__
             varMax = fmax(fabs(var[i]),fabs(varNew[i]));
             scale = absTol[i]+ relTol[i]*varMax;
 
-            err += pow((double)varErr[i]/scale,2.0);
+            err += pow((REAL)varErr[i]/scale,2.0);
         }
-        err  = sqrt((double) err/NVAR);
+        err  = sqrt((REAL) err/NVAR);
     }else{
         for (int i=0;i<NVAR - 16;i+=16){
             prefetch_ll1(&varErr[i]);
@@ -255,9 +260,9 @@ __device__ double ros_ErrorNorm(double * __restrict__ var, double * __restrict__
             varMax = fmax(fabs(var[i]),fabs(varNew[i]));
 
             scale = absTol[0]+ relTol[0]*varMax;
-            err += pow((double)varErr[i]/scale,2.0);
+            err += pow((REAL)varErr[i]/scale,2.0);
         }
-        err  = sqrt((double) err/NVAR);
+        err  = sqrt((REAL) err/NVAR);
     }
 
     return err;
@@ -267,7 +272,7 @@ __device__ double ros_ErrorNorm(double * __restrict__ var, double * __restrict__
 
 =#=#=#=#=#=#=#=#=#=#=kppSolve=#=#=#=#=#=#=#=#=#=#=
 
-__device__ void ros_Solve(double * __restrict__ Ghimj, double * __restrict__ K, int &Nsol, const int istage, const int ros_S)
+__device__ void ros_Solve(REAL * __restrict__ Ghimj, REAL * __restrict__ K, int &Nsol, const int istage, const int ros_S)
 {
 
     #pragma unroll 4 
@@ -281,7 +286,7 @@ __device__ void ros_Solve(double * __restrict__ Ghimj, double * __restrict__ K, 
 
 =#=#=#=#=#=#=#=#=#=#=kppDecomp=#=#=#=#=#=#=#=#=#=#=
 
-__device__ void ros_Decomp(double * __restrict__ Ghimj, int &Ndec, int VL_GLO)
+__device__ void ros_Decomp(REAL * __restrict__ Ghimj, int &Ndec, int VL_GLO)
 {
     kppDecomp(Ghimj, VL_GLO);
     Ndec++;
@@ -294,15 +299,15 @@ __device__ void ros_Decomp(double * __restrict__ Ghimj, int &Ndec, int VL_GLO)
 
 =#=#=#=#=#=#=#=#=#=#=Fun=#=#=#=#=#=#=#=#=#=#=
 
-__device__ void ros_FunTimeDerivative(const double T, double roundoff, double * __restrict__ var, const double * __restrict__ fix, 
-                                      const double * __restrict__ rconst, double *dFdT, double *Fcn0, int &Nfun, 
-                                      const double * __restrict__ khet_st, const double * __restrict__ khet_tr,
-                                      const double * __restrict__ jx,
+__device__ void ros_FunTimeDerivative(const REAL T, REAL roundoff, REAL * __restrict__ var, const REAL * __restrict__ fix, 
+                                      const REAL * __restrict__ rconst, REAL *dFdT, REAL *Fcn0, int &Nfun, 
+                                      const REAL * __restrict__ khet_st, const REAL * __restrict__ khet_tr,
+                                      const REAL * __restrict__ jx,
                                       const int VL_GLO)
 {
     int index = blockIdx.x*blockDim.x+threadIdx.x;
-    const double DELTAMIN = 1.0E-6;
-    double delta,one_over_delta;
+    const REAL DELTAMIN = 1.0E-6;
+    REAL delta,one_over_delta;
 
     delta = sqrt(roundoff)*fmax(DELTAMIN,fabs(T));
     one_over_delta = 1.0/delta;
@@ -314,32 +319,32 @@ __device__ void ros_FunTimeDerivative(const double T, double roundoff, double * 
     }
 }
 
-__device__  static  int ros_Integrator(double * __restrict__ var, const double * __restrict__ fix, const double Tstart, const double Tend, double &T,
+__device__  static  int ros_Integrator(REAL * __restrict__ var, const REAL * __restrict__ fix, const REAL Tstart, const REAL Tend, REAL &T,
         //  Rosenbrock method coefficients
-        const int ros_S, const double * __restrict__ ros_M, const double * __restrict__ ros_E, const double * __restrict__ ros_A, const double * __restrict__  ros_C, 
-        const double * __restrict__ ros_Alpha, const double * __restrict__ ros_Gamma, const double ros_ELO, const int * ros_NewF, 
+        const int ros_S, const REAL * __restrict__ ros_M, const REAL * __restrict__ ros_E, const REAL * __restrict__ ros_A, const REAL * __restrict__  ros_C, 
+        const REAL * __restrict__ ros_Alpha, const REAL * __restrict__ ros_Gamma, const REAL ros_ELO, const int * ros_NewF, 
         //  Integration parameters
         const int autonomous, const int vectorTol, const int Max_no_steps, 
-        const double roundoff, const double Hmin, const double Hmax, const double Hstart, double &Hexit, 
-        const double FacMin, const double FacMax, const double FacRej, const double FacSafe, 
+        const REAL roundoff, const REAL Hmin, const REAL Hmax, const REAL Hstart, REAL &Hexit, 
+        const REAL FacMin, const REAL FacMax, const REAL FacRej, const REAL FacSafe, 
         //  Status parameters
         int &Nfun, int &Njac, int &Nstp, int &Nacc, int &Nrej, int &Ndec, int &Nsol, int &Nsng,
         //  cuda global mem buffers              
-        const double * __restrict__ rconst,  const double * __restrict__ absTol, const double * __restrict__ relTol, double * __restrict__ varNew, double * __restrict__ Fcn0, 
-        double * __restrict__ K, double * __restrict__ dFdT, double * __restrict__ jac0, double * __restrict__ Ghimj, double * __restrict__ varErr,
+        const REAL * __restrict__ rconst,  const REAL * __restrict__ absTol, const REAL * __restrict__ relTol, REAL * __restrict__ varNew, REAL * __restrict__ Fcn0, 
+        REAL * __restrict__ K, REAL * __restrict__ dFdT, REAL * __restrict__ jac0, REAL * __restrict__ Ghimj, REAL * __restrict__ varErr,
         // for update_rconst
-        const double * __restrict__ khet_st, const double * __restrict__ khet_tr,
-        const double * __restrict__ jx,
+        const REAL * __restrict__ khet_st, const REAL * __restrict__ khet_tr,
+        const REAL * __restrict__ jx,
         // VL_GLO
         const int VL_GLO)
 {
     int index = blockIdx.x*blockDim.x+threadIdx.x;
 
-    double H, Hnew, HC, HG, Fac; // Tau - not used
-    double Err; //*varErr;
+    REAL H, Hnew, HC, HG, Fac; // Tau - not used
+    REAL Err; //*varErr;
     int direction;
     int rejectLastH, rejectMoreH;
-    const double DELTAMIN = 1.0E-5;
+    const REAL DELTAMIN = 1.0E-5;
 
     //   ~~~>  Initial preparations
     T = Tstart;
@@ -426,7 +431,7 @@ __device__  static  int ros_Integrator(double * __restrict__ var, const double *
 		{
 			HC = ros_C[(istage)*(istage-1)/2 + j]/(direction*H);
 			for (int i=0; i<NVAR; i++){
-				double tmp = K(index,j,i);
+				REAL tmp = K(index,j,i);
 				K(index,istage,i) += tmp*HC;
 			}
 		}
@@ -446,11 +451,11 @@ __device__  static  int ros_Integrator(double * __restrict__ var, const double *
 
             //  ~~~>  Compute the new solution
 	    for (int i=0; i<NVAR; i++){
-		    double tmpNew  = var(index,i); 					/// VAR READ
-		    double tmpErr  = ZERO;
+		    REAL tmpNew  = var(index,i); 					/// VAR READ
+		    REAL tmpErr  = ZERO;
 
 		    for (int j=0; j<ros_S; j++){
-		    	    double tmp = K(index,j,i);
+		    	    REAL tmp = K(index,j,i);
 
 #ifdef DEBUG
 			    if (isnan(tmp)){
@@ -507,14 +512,14 @@ __device__  static  int ros_Integrator(double * __restrict__ var, const double *
 }
 
 typedef struct {
- double ros_A[15];
- double ros_C[15];
+ REAL ros_A[15];
+ REAL ros_C[15];
  int   ros_NewF[8];
- double ros_M[6];
- double ros_E[6];
- double ros_Alpha[6];
- double ros_Gamma[6];
- double ros_ELO;
+ REAL ros_M[6];
+ REAL ros_E[6];
+ REAL ros_Alpha[6];
+ REAL ros_Gamma[6];
+ REAL ros_ELO;
  int    ros_S;
 } ros_t;
 
@@ -594,13 +599,13 @@ __device__ __constant__  ros_t ros[5] = {
 
 
 
-//__device__ double rconst_local[MAX_VL_GLO*NREACT];
+//__device__ REAL rconst_local[MAX_VL_GLO*NREACT];
 
 /* Initialize rconst local  */
-//__device__ double * rconst_local;
+//__device__ REAL * rconst_local;
 
 
-__device__ double k_3rd(double temp, double cair, double k0_300K, double n, double kinf_300K, double m, double fc)
+__device__ REAL k_3rd(REAL temp, REAL cair, REAL k0_300K, REAL n, REAL kinf_300K, REAL m, REAL fc)
     /*
  *    
  * temp        temperature [K]
@@ -614,7 +619,7 @@ __device__ double k_3rd(double temp, double cair, double k0_300K, double n, doub
  */
 {
 
-    double zt_help, k0_T, kinf_T, k_ratio, k_3rd_r;
+    REAL zt_help, k0_T, kinf_T, k_ratio, k_3rd_r;
 
     zt_help = 300.0/temp;
     k0_T    = k0_300K   *pow(zt_help,n) *cair;
@@ -624,7 +629,7 @@ __device__ double k_3rd(double temp, double cair, double k0_300K, double n, doub
     return k_3rd_r;
 }
 
-__device__ double k_3rd_iupac(double temp, double cair, double k0_300K, double n, double kinf_300K, double m, double fc)
+__device__ REAL k_3rd_iupac(REAL temp, REAL cair, REAL k0_300K, REAL n, REAL kinf_300K, REAL m, REAL fc)
 /*
  *    
  * temp        temperature [K]
@@ -639,7 +644,7 @@ __device__ double k_3rd_iupac(double temp, double cair, double k0_300K, double n
  */
 {   
  
-    double zt_help, k0_T, kinf_T, k_ratio, nu, k_3rd_iupac_r;
+    REAL zt_help, k0_T, kinf_T, k_ratio, nu, k_3rd_iupac_r;
     zt_help = 300.0/temp;
     k0_T    = k0_300K   *pow(zt_help,n) *cair;
     kinf_T  = kinf_300K *pow(zt_help,m);
@@ -659,22 +664,43 @@ double * cair_gpu;
 
 =#=#=#=#=#=#=#=#=#=#=update_rconst=#=#=#=#=#=#=#=#=#=#=
 
+#if defined(__SINGLEPREC)
+float * temp_gpu_s;
+float * press_gpu_s;
+float * cair_gpu_s;
+
+__global__ void doubleToFloat(float *out, double* in, int n)
+{
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+
+    for (; i < n; i += gridDim.x * blockDim.x)
+        out[i] = in[i];
+}
+
+__global__ void floatToDouble(double *out, float* in, int n)
+{
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+
+    for (; i < n; i += gridDim.x * blockDim.x)
+        out[i] = in[i];
+}
+#endif
 
 __global__ 
-void Rosenbrock(double * __restrict__ conc, const double Tstart, const double Tend, double * __restrict__ rstatus, int * __restrict__ istatus,
+void Rosenbrock(REAL * __restrict__ conc, const REAL Tstart, const REAL Tend, REAL * __restrict__ rstatus, int * __restrict__ istatus,
                 // values calculated from icntrl and rcntrl at host
                 const int autonomous, const int vectorTol, const int UplimTol, const int method, const int Max_no_steps,
-                double * __restrict__ d_jac0, double * __restrict__ d_Ghimj, double * __restrict__ d_varNew, double * __restrict__ d_K, double * __restrict__ d_varErr,double * __restrict__ d_dFdT ,double * __restrict__ d_Fcn0, double * __restrict__ d_var, double * __restrict__ d_fix, double * __restrict__ d_rconst,
-                const double Hmin, const double Hmax, const double Hstart, const double FacMin, const double FacMax, const double FacRej, const double FacSafe, const double roundoff,
+                REAL * __restrict__ d_jac0, REAL * __restrict__ d_Ghimj, REAL * __restrict__ d_varNew, REAL * __restrict__ d_K, REAL * __restrict__ d_varErr,REAL * __restrict__ d_dFdT ,REAL * __restrict__ d_Fcn0, REAL * __restrict__ d_var, REAL * __restrict__ d_fix, REAL * __restrict__ d_rconst,
+                const REAL Hmin, const REAL Hmax, const REAL Hstart, const REAL FacMin, const REAL FacMax, const REAL FacRej, const REAL FacSafe, const REAL roundoff,
                 // cuda global mem buffers              
-                const double * __restrict__ absTol, const double * __restrict__ relTol,
+                const REAL * __restrict__ absTol, const REAL * __restrict__ relTol,
                 // for update_rconst
-    	        const double * __restrict__ khet_st, const double * __restrict__ khet_tr,
-		const double * __restrict__ jx,
+    	        const REAL * __restrict__ khet_st, const REAL * __restrict__ khet_tr,
+		const REAL * __restrict__ jx,
                 // global input
-                const double * __restrict__ temp_gpu,
-                const double * __restrict__ press_gpu,
-                const double * __restrict__ cair_gpu,
+                const REAL * __restrict__ temp_gpu,
+                const REAL * __restrict__ press_gpu,
+                const REAL * __restrict__ cair_gpu,
                 // extra
                 const int VL_GLO)
 {
@@ -687,16 +713,16 @@ void Rosenbrock(double * __restrict__ conc, const double Tstart, const double Te
      *  optimize accesses. 
      *
      */
-    double *Ghimj  = &d_Ghimj[index*LU_NONZERO];    
-    double *K      = &d_K[index*NVAR*6];
-    double *varNew = &d_varNew[index*NVAR];
-    double *Fcn0   = &d_Fcn0[index*NVAR];
-    double *dFdT   = &d_dFdT[index*NVAR];
-    double *jac0   = &d_jac0[index*LU_NONZERO];
-    double *varErr = &d_varErr[index*NVAR];
-    double *var    = &d_var[index*NSPEC];
-    double *fix    = &d_fix[index*NFIX];
-    double *rconst = &d_rconst[index*NREACT];
+    REAL *Ghimj  = &d_Ghimj[index*LU_NONZERO];    
+    REAL *K      = &d_K[index*NVAR*6];
+    REAL *varNew = &d_varNew[index*NVAR];
+    REAL *Fcn0   = &d_Fcn0[index*NVAR];
+    REAL *dFdT   = &d_dFdT[index*NVAR];
+    REAL *jac0   = &d_jac0[index*LU_NONZERO];
+    REAL *varErr = &d_varErr[index*NVAR];
+    REAL *var    = &d_var[index*NSPEC];
+    REAL *fix    = &d_fix[index*NFIX];
+    REAL *rconst = &d_rconst[index*NREACT];
 
 
 
@@ -704,7 +730,7 @@ void Rosenbrock(double * __restrict__ conc, const double Tstart, const double Te
     {
 
         int Nfun,Njac,Nstp,Nacc,Nrej,Ndec,Nsol,Nsng;
-        double Texit, Hexit;
+        REAL Texit, Hexit;
 
         Nfun = 0;
         Njac = 0;
@@ -716,15 +742,15 @@ void Rosenbrock(double * __restrict__ conc, const double Tstart, const double Te
         Nsng = 0;
 
         /* FIXME: add check for method */
-        const double *ros_A     = &ros[method-1].ros_A[0]; 
-        const double *ros_C     = &ros[method-1].ros_C[0];
-        const double *ros_M     = &ros[method-1].ros_M[0]; 
-        const double *ros_E     = &ros[method-1].ros_E[0];
-        const double *ros_Alpha = &ros[method-1].ros_Alpha[0]; 
-        const double *ros_Gamma = &ros[method-1].ros_Gamma[0]; 
+        const REAL *ros_A     = &ros[method-1].ros_A[0]; 
+        const REAL *ros_C     = &ros[method-1].ros_C[0];
+        const REAL *ros_M     = &ros[method-1].ros_M[0]; 
+        const REAL *ros_E     = &ros[method-1].ros_E[0];
+        const REAL *ros_Alpha = &ros[method-1].ros_Alpha[0]; 
+        const REAL *ros_Gamma = &ros[method-1].ros_Gamma[0]; 
         const int    *ros_NewF  = &ros[method-1].ros_NewF[0];
         const int     ros_S     =  ros[method-1].ros_S; 
-        const double  ros_ELO   =  ros[method-1].ros_ELO; 
+        const REAL  ros_ELO   =  ros[method-1].ros_ELO; 
 
 
 
@@ -926,6 +952,10 @@ __global__ void reduce_istatus_2(int4 *tmp_out_1, int4 *tmp_out_2, int *out)
 /* Assuming different processes */
 enum { TRUE=1, FALSE=0 } ;
 double *d_conc, *d_temp, *d_press, *d_cair, *d_khet_st, *d_khet_tr, *d_jx, *d_jac0, *d_Ghimj, *d_varNew, *d_K, *d_varErr, *d_dFdT, *d_Fcn0, *d_var, *d_fix, *d_rconst;
+#if defined(__SINGLEPREC)
+float *d_conc_s, *d_temp_s, *d_press_s, *d_cair_s, *d_khet_st_s, *d_khet_tr_s, *d_jx_s, *d_jac0_s, *d_Ghimj_s, *d_varNew_s, *d_K_s, *d_varErr_s, *d_dFdT_s, *d_Fcn0_s, *d_var_s, *d_fix_s, *d_rconst_s;
+float *d_rstatus_s, *d_absTol_s, *d_relTol_s;
+#endif
 int initialized = FALSE;
 
 /* Device pointers pointing to GPU */
@@ -980,6 +1010,36 @@ __host__ void init_first_time(int pe, int VL_GLO, int size_khet_st, int size_khe
     gpuErrchk( cudaMalloc ((void **) &d_fix, sizeof(double)*VL_GLO*NFIX)       );
     gpuErrchk( cudaMalloc ((void **) &d_rconst, sizeof(double)*VL_GLO*NREACT)       );
 
+    #if defined(__SINGLEPREC)
+    gpuErrchk( cudaMalloc ((void **) &d_conc_s   , sizeof(float)*VL_GLO*(NSPEC))        );
+    gpuErrchk( cudaMalloc ((void **) &d_khet_st_s, sizeof(float)*VL_GLO*size_khet_st) );
+    gpuErrchk( cudaMalloc ((void **) &d_khet_tr_s, sizeof(float)*VL_GLO*size_khet_tr) );
+    gpuErrchk( cudaMalloc ((void **) &d_jx_s     , sizeof(float)*VL_GLO*size_jx)      );
+
+    gpuErrchk( cudaMalloc ((void **) &d_rstatus_s    , sizeof(float)*VL_GLO*2)          );
+    gpuErrchk( cudaMalloc ((void **) &d_absTol_s     , sizeof(float)*NVAR)              );
+    gpuErrchk( cudaMalloc ((void **) &d_relTol_s     , sizeof(float)*NVAR)              );
+
+    /* Allocate input arrays */
+    gpuErrchk( cudaMalloc ((void **) &temp_gpu_s     , sizeof(float)*VL_GLO)              );
+    gpuErrchk( cudaMalloc ((void **) &press_gpu_s     , sizeof(float)*VL_GLO)              );
+    gpuErrchk( cudaMalloc ((void **) &cair_gpu_s     , sizeof(float)*VL_GLO)              );
+
+    /* Allocate arrays for solvers on device global memory to reduce the stack usage */
+    gpuErrchk( cudaMalloc ((void **) &d_jac0_s, sizeof(float)*VL_GLO*LU_NONZERO)   );
+    gpuErrchk( cudaMalloc ((void **) &d_Ghimj_s, sizeof(float)*VL_GLO*LU_NONZERO)   );
+    gpuErrchk( cudaMalloc ((void **) &d_varNew_s, sizeof(float)*VL_GLO*NVAR)       );
+    gpuErrchk( cudaMalloc ((void **) &d_Fcn0_s, sizeof(float)*VL_GLO*NVAR)       );
+    gpuErrchk( cudaMalloc ((void **) &d_dFdT_s, sizeof(float)*VL_GLO*NVAR)       );
+
+    gpuErrchk( cudaMalloc ((void **) &d_K_s, sizeof(float)*VL_GLO*NVAR*6)       );  // TODO: Change size according to solver steps
+    gpuErrchk( cudaMalloc ((void **) &d_varErr_s, sizeof(float)*VL_GLO*NVAR)       );
+    gpuErrchk( cudaMalloc ((void **) &d_var_s, sizeof(float)*VL_GLO*NSPEC)       );
+    gpuErrchk( cudaMalloc ((void **) &d_fix_s, sizeof(float)*VL_GLO*NFIX)       );
+    gpuErrchk( cudaMalloc ((void **) &d_rconst_s, sizeof(float)*VL_GLO*NREACT)       );
+    #endif
+
+
     initialized = TRUE;
 }
 
@@ -1018,6 +1078,34 @@ extern "C" void finalize_cuda(){
     gpuErrchk( cudaFree(d_var         ) );
     gpuErrchk( cudaFree(d_fix         ) );
     gpuErrchk( cudaFree(d_rconst      ) );
+
+    #if defined(__SINGLEPREC)
+    gpuErrchk( cudaFree(d_conc_s        ) );
+    gpuErrchk( cudaFree(d_temp_s        ) );
+    gpuErrchk( cudaFree(d_press_s       ) );
+    gpuErrchk( cudaFree(d_cair_s        ) );
+    gpuErrchk( cudaFree(d_khet_st_s     ) );
+    gpuErrchk( cudaFree(d_khet_tr_s     ) );
+    gpuErrchk( cudaFree(d_jx_s          ) );
+    gpuErrchk( cudaFree(d_rstatus_s     ) );
+    gpuErrchk( cudaFree(d_absTol_s      ) );
+    gpuErrchk( cudaFree(d_relTol_s      ) );
+    gpuErrchk( cudaFree(temp_gpu_s      ) );
+    gpuErrchk( cudaFree(press_gpu_s     ) );
+    gpuErrchk( cudaFree(cair_gpu_s      ) );
+
+    gpuErrchk( cudaFree(d_jac0_s        ) );
+    gpuErrchk( cudaFree(d_Ghimj_s       ) );
+    gpuErrchk( cudaFree(d_varNew_s      ) );
+    gpuErrchk( cudaFree(d_Fcn0_s        ) );
+    gpuErrchk( cudaFree(d_dFdT_s        ) );
+    gpuErrchk( cudaFree(d_K_s           ) );
+    gpuErrchk( cudaFree(d_varErr_s      ) );
+    gpuErrchk( cudaFree(d_var_s         ) );
+    gpuErrchk( cudaFree(d_fix_s         ) );
+    gpuErrchk( cudaFree(d_rconst_s      ) );
+
+    #endif
 
 }
 
@@ -1114,7 +1202,17 @@ extern "C" void kpp_integrate_cuda_( int *pe_p, int *sizes, double *time_step_le
     dim3 dimBlock(block_size);
     dim3 dimGrid(grid_size);
 
-
+    #if defined(__SINGLEPREC)
+    doubleToFloat<<<dimGrid,dimBlock>>>(d_conc_s,d_conc,VL_GLO*NSPEC);
+    doubleToFloat<<<dimGrid,dimBlock>>>(temp_gpu_s,temp_gpu,VL_GLO);
+    doubleToFloat<<<dimGrid,dimBlock>>>(press_gpu_s,press_gpu,VL_GLO);
+    doubleToFloat<<<dimGrid,dimBlock>>>(cair_gpu_s,cair_gpu,VL_GLO);
+    doubleToFloat<<<dimGrid,dimBlock>>>(d_khet_st_s,d_khet_st,VL_GLO*size_khet_st);
+    doubleToFloat<<<dimGrid,dimBlock>>>(d_khet_tr_s,d_khet_tr,VL_GLO*size_khet_tr);
+    doubleToFloat<<<dimGrid,dimBlock>>>(d_jx_s,d_jx,VL_GLO*size_jx);
+    doubleToFloat<<<dimGrid,dimBlock>>>(d_absTol_s,d_absTol,NVAR);
+    doubleToFloat<<<dimGrid,dimBlock>>>(d_relTol_s,d_relTol,NVAR);
+    #endif
     /* Execute the kernel */
     //update_rconst<<<dimGrid,dimBlock>>>(d_conc, d_khet_st, d_khet_tr, d_jx, VL_GLO); 
 
@@ -1297,6 +1395,10 @@ extern "C" void kpp_integrate_cuda_( int *pe_p, int *sizes, double *time_step_le
     GPU_DEBUG();
     
     /* Copy the result back */
+    #if defined(__SINGLEPREC)
+    floatToDouble<<<dimGrid,dimBlock>>>(d_conc,d_conc_s,VL_GLO*NSPEC);
+    #endif
+
     gpuErrchk( cudaMemcpy( conc      , d_conc       , sizeof(double)*VL_GLO*NVAR, cudaMemcpyDeviceToHost) );  
     gpuErrchk( cudaMemcpy( xNacc      , d_xNacc      , sizeof(int)*VL_GLO         , cudaMemcpyDeviceToHost) );  
     gpuErrchk( cudaMemcpy( xNrej      , d_xNrej      , sizeof(int)*VL_GLO         , cudaMemcpyDeviceToHost) ); 
